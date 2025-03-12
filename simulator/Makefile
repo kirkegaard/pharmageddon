@@ -1,4 +1,4 @@
-# A simple Makefile for compiling small SDL projects
+# A simple Makefile for compiling small SDL projects on macOS (Apple Silicon)
 
 # set the compiler
 CC := clang
@@ -6,8 +6,10 @@ CC := clang
 DEMO_DIR = ../demo
 ENGINE_DIR = ../engine
 
-CFLAGS := `sdl2-config --cflags` -ggdb3 -O0 --std=c99 -Wall -I $(DEMO_DIR) -I $(ENGINE_DIR)
-LDFLAGS := `sdl2-config --libs` -lSDL2_mixer -lm -lassimp
+ASSIMP_PATH := /opt/homebrew/opt/assimp
+
+CFLAGS := $(shell pkg-config --cflags sdl2 SDL2_mixer) -I$(ASSIMP_PATH)/include -ggdb3 -O0 --std=c99 -Wall -I $(DEMO_DIR) -I $(ENGINE_DIR)
+LDFLAGS := $(shell pkg-config --libs sdl2 SDL2_mixer) -L$(ASSIMP_PATH)/lib -lassimp -lm
 
 # add header files here
 HDRS := $(DEMO_DIR)/demo.h
@@ -25,18 +27,15 @@ EXEC := pharma
 all: $(EXEC)
 
 $(DEMO_DIR)/demo.a: FORCE
-	$(MAKE) -C $(DEMO_DIR)
+	$(MAKE) -C $(DEMO_DIR) CFLAGS="$(CFLAGS)"
+
 
 $(ENGINE_DIR)/engine.a: FORCE
-	$(MAKE) -C $(ENGINE_DIR)
+	$(MAKE) -C $(ENGINE_DIR) CFLAGS="$(CFLAGS)"
 
 # recipe for building the final executable
 $(EXEC): $(OBJS) $(HDRS) Makefile
 	$(CC) -o $@ $(OBJS) $(CFLAGS) $(LDFLAGS)
-
-# recipe for building object files
-#$(OBJS): $(@:.o=.c) $(HDRS) Makefile
-#    $(CC) -o $@ $(@:.o=.c) -c $(CFLAGS)
 
 # recipe to clean the workspace
 clean:
