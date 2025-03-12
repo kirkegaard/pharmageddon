@@ -1,15 +1,36 @@
-# A simple Makefile for compiling small SDL projects on macOS (Apple Silicon)
+# A simple Makefile for compiling small SDL projects
 
 # set the compiler
-CC := clang
+CC ?= cc
 
 DEMO_DIR = ../demo
 ENGINE_DIR = ../engine
 
-ASSIMP_PATH := /opt/homebrew/opt/assimp
+# Platform detection
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
 
-CFLAGS := $(shell pkg-config --cflags sdl2 SDL2_mixer) -I$(ASSIMP_PATH)/include -ggdb3 -O0 --std=c99 -Wall -I $(DEMO_DIR) -I $(ENGINE_DIR)
-LDFLAGS := $(shell pkg-config --libs sdl2 SDL2_mixer) -L$(ASSIMP_PATH)/lib -lassimp -lm
+# Default Assimp path 
+ASSIMP_PATH ?= /usr
+ifeq ($(UNAME_S), Darwin) # macOS
+    ifeq ($(UNAME_M), arm64) # Apple Silicon
+        ASSIMP_PATH := /opt/homebrew/opt/assimp
+    else # Intel mac
+        ASSIMP_PATH := /usr/local/opt/assimp
+    endif
+endif
+
+# Flags for SDL2 and SDL2_mixer 
+SDL_CFLAGS := $(shell pkg-config --cflags sdl2 SDL2_mixer)
+SDL_LDFLAGS := $(shell pkg-config --libs sdl2 SDL2_mixer)
+
+# Assimp include and link flags
+ASSIMP_CFLAGS := -I$(ASSIMP_PATH)/include
+ASSIMP_LDFLAGS := -L$(ASSIMP_PATH)/lib -lassimp
+
+# flags
+CFLAGS := $(SDL_CFLAGS) $(ASSIMP_CFLAGS) -ggdb3 -O0 --std=c99 -Wall -I $(DEMO_DIR) -I $(ENGINE_DIR)
+LDFLAGS := $(SDL_LDFLAGS) $(ASSIMP_LDFLAGS) -lm
 
 # add header files here
 HDRS := $(DEMO_DIR)/demo.h
@@ -27,18 +48,15 @@ EXEC := pharma
 all: $(EXEC)
 
 $(DEMO_DIR)/demo.a: FORCE
-	$(MAKE) -C $(DEMO_DIR) CFLAGS="$(CFLAGS)"
-
+	$(MAKE) -C $(DEMO_DIR) CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
 
 $(ENGINE_DIR)/engine.a: FORCE
-	$(MAKE) -C $(ENGINE_DIR) CFLAGS="$(CFLAGS)"
+	$(MAKE) -C $(ENGINE_DIR) CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
 
-# recipe for building the final executable
 $(EXEC): $(OBJS) $(HDRS) Makefile
 	$(CC) -o $@ $(OBJS) $(CFLAGS) $(LDFLAGS)
 
-# recipe to clean the workspace
 clean:
-	rm -f $(EXEC) $(OBJS)
+	rm -f $(EXEC) $(SRCS:.c=.o)
 
 .PHONY: all clean FORCE
